@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>큐브 암호</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE everyday learning tool, clear and a little playful
+   IDEA a real 3x3 cube on a desk beside a worksheet of number grids
+   PICTURE the 3D cube itself, turning layer by layer as the key is entered
+   COLOUR white ground, cube blue band, sticker colours as working accents, red for the result
+   TYPE IBM Plex Sans KR for text and titles, IBM Plex Mono for numbers
+   LAYOUT laptop: cube left (sticky), three step cards right; phone: title, cube, controls, steps */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#0f1115);--ink:light-dark(#15171c,#eceef3);--mute:light-dark(#5a6070,#9aa1b2);--panel:light-dark(#f3f5f9,#181b22);--line:light-dark(#dde1ea,#2a2f3a);--blue:#0046ad;--red:#c41e3a;--yel:#ffd500;--org:#ff5800;--grn:#009b48;--wht:#f4f4f4}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 "IBM Plex Sans KR",system-ui,sans-serif;overflow-x:clip}
+button,input,textarea{font:inherit;color:inherit}
+.top{background:var(--blue);color:#fff;padding:22px max(4vw,16px) 0}
+.top h1{margin:0;font-size:clamp(32px,5vw,46px);line-height:1.05;letter-spacing:-.02em}
+.top p{margin:6px 0 16px;max-width:62ch;color:#dbe6ff}
+.tabs{display:flex;gap:6px}
+.tab{border:0;background:transparent;color:#dbe6ff;padding:12px 20px;min-height:44px;border-radius:10px 10px 0 0;font-weight:700;cursor:pointer}
+.tab[aria-selected=true]{background:var(--bg);color:var(--ink)}
+.tab:focus-visible,.btn:focus-visible,.mv:focus-visible{outline:3px solid var(--yel);outline-offset:2px}
+main{display:grid;grid-template-columns:minmax(0,46fr) minmax(0,54fr);gap:clamp(16px,3vw,40px);padding:24px max(4vw,16px) 48px;max-width:1320px;margin:0 auto}
+.side{position:sticky;top:12px;align-self:start}
+.stage{position:relative;height:380px;perspective:1000px;background:radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--blue) 14%,var(--bg)),var(--bg) 70%);border-radius:18px;touch-action:none;cursor:grab;overflow:hidden}
+.stage.drag{cursor:grabbing}
+.view{position:absolute;left:50%;top:50%;width:0;height:0;transform-style:preserve-3d}
+.cb{position:absolute;transform-style:preserve-3d}
+.f{position:absolute;inset:0;background:#111;border-radius:12%;backface-visibility:hidden}
+.f::after{content:"";position:absolute;inset:6%;border-radius:14%;background:var(--c,#1b1b1b)}
+.hint{position:absolute;left:14px;bottom:10px;font-size:13px;color:var(--mute)}
+.state{position:absolute;right:14px;top:12px;font-size:13px;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+.pad{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin-top:12px}
+.mv{min-height:44px;border:1px solid var(--line);background:var(--panel);border-radius:10px;font-weight:700;font-family:"IBM Plex Mono",monospace;font-size:17px;cursor:pointer;position:relative}
+.mv::before{content:"";position:absolute;left:8px;top:8px;width:9px;height:9px;border-radius:2px;background:var(--fc);box-shadow:inset 0 0 0 1px #0004}
+.mv:hover{border-color:var(--ink)}
+.mv:active{transform:translateY(1px)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:13px;color:var(--mute)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:14px;height:14px;border-radius:3px;border:1px solid #0003;display:inline-block}
+.row2{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.btn{min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--line);background:var(--panel);font-weight:600;cursor:pointer}
+.btn.go{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn.hot{background:var(--red);border-color:var(--red);color:#fff}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.step{border:1px solid var(--line);border-radius:16px;padding:18px clamp(14px,2.4vw,22px);margin-bottom:16px;background:var(--bg)}
+.step h2{display:flex;align-items:center;gap:12px;margin:0 0 6px;font-size:21px;line-height:1.2}
+.tile{flex:none;width:34px;height:34px;border-radius:8px;display:grid;place-items:center;font-family:"IBM Plex Mono",monospace;font-size:17px;color:#111;box-shadow:inset 0 0 0 3px #111}
+.step>p{margin:0 0 12px;color:var(--mute)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;min-height:34px;align-items:center}
+.chip{font-family:"IBM Plex Mono",monospace;font-weight:600;padding:3px 10px;border-radius:8px;background:var(--panel);border:1px solid var(--line)}
+.empty{color:var(--mute);font-size:15px}
+label{display:block;font-weight:600;font-size:15px;margin:12px 0 6px}
+.in{width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-size:16px}
+textarea.in{min-height:84px;resize:vertical;font-family:"IBM Plex Mono",monospace}
+.in:focus{outline:2px solid var(--blue);outline-offset:1px}
+.keyline{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.mat{display:flex;flex-wrap:wrap;gap:16px;align-items:center}
+.mgrid{display:grid;grid-template-columns:repeat(3,58px);gap:4px;padding:6px 10px;border-left:2px solid var(--ink);border-right:2px solid var(--ink);border-radius:6px}
+.mgrid input{width:58px;min-height:40px;text-align:center;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-family:"IBM Plex Mono",monospace;font-size:16px}
+.mgrid.ro span{display:grid;place-items:center;min-height:40px;font-family:"IBM Plex Mono",monospace}
+.ok{color:var(--grn);font-weight:600}.bad{color:var(--red);font-weight:600}
+.note{font-size:14px;color:var(--mute);margin:8px 0 0}
+.warn{font-size:14px;color:var(--red);margin:8px 0 0}
+.srow{border-top:1px solid var(--line);padding:14px 0 6px}
+.srow h3{margin:0 0 2px;font-size:16px}
+.srow .eq{font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--mute);margin-bottom:8px}
+.layers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.lk{font-size:13px;color:var(--mute);margin-bottom:3px}
+.lay{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px}
+.cell{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:42px;border-radius:7px;background:var(--panel);font-family:"IBM Plex Mono",monospace;line-height:1.1}
+.cell b{font-size:15px}.cell i{font-style:normal;font-size:13px;color:var(--mute)}
+.result{margin-top:14px;padding:16px;border-radius:14px;background:color-mix(in srgb,var(--red) 10%,var(--bg));border:1px solid color-mix(in srgb,var(--red) 40%,var(--bg))}
+.result h3{margin:0 0 8px;font-size:17px}
+.big{font-family:"IBM Plex Mono",monospace;font-size:clamp(17px,2.4vw,22px);font-weight:600;overflow-wrap:anywhere;white-space:pre-wrap;margin:0 0 10px}
+.big u{text-decoration:none;color:var(--mute)}
+.blks{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 2px}
+.blks .btn{min-height:36px}.blks .btn[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+[hidden]{display:none!important}
+@media(max-width:860px){main{grid-template-columns:minmax(0,1fr)}.side{position:static}}
+@media(max-width:600px){.stage{height:300px}.cell{min-height:36px}.cell b{font-size:13px}.layers{gap:6px}.mgrid{grid-template-columns:repeat(3,50px)}.mgrid input{width:50px}.tab{padding:12px 14px}}
+@media(prefers-reduced-motion:reduce){.mv:active{transform:none}}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>큐브 암호</h1>
+  <p>큐브를 돌린 순서와 행렬 A가 열쇠입니다. 더하기 → 섞기 → 곱하기로 잠그고, 같은 열쇠의 역원을 거꾸로 적용해 풉니다.</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" id="tabEnc" role="tab" aria-selected="true" data-tab="enc">암호화</button>
+    <button class="tab" id="tabDec" role="tab" aria-selected="false" data-tab="dec">복호화</button>
+  </div>
+</header>
+<main>
+  <section class="side" aria-label="큐브">
+    <div class="stage" id="stage"><div class="view" id="view"></div><span class="state" id="cubeState">키 상태</span><span class="hint">끌어서 둘러보기</span></div>
+    <div class="pad" id="pad"></div>
+    <p class="note">U 위 · D 아래 · L 왼쪽 · R 오른쪽 · F 앞 · B 뒤. ′는 반대 방향입니다. 키보드로도 돌릴 수 있어요(Shift를 누르면 ′).</p>
+    <div class="row2">
+      <button class="btn" id="undo">한 수 되돌리기</button>
+      <button class="btn" id="rand">무작위 10수</button>
+      <button class="btn" id="reset">맞춘 상태로</button>
+    </div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <section id="paneEnc">
+    <div class="step">
+      <h2><span class="tile" style="background:var(--wht)">1</span>큐브 키</h2>
+      <p>큐브를 돌린 순서가 그대로 키가 됩니다. 받는 사람에게 이 순서와 행렬 A를 몰래 알려 주세요.</p>
+      <div data-key></div>
+    </div>
+    <div class="step">
+      <h2><span class="tile" style="background:var(--yel)">2</span>문자열 대입</h2>
+      <p>영문 대문자와 공백, 마침표, 물음표를 0~28의 숫자로 바꿔 27칸씩 큐브에 채웁니다. 소문자는 대문자로, 나머지 기호는 ?로 바뀝니다.</p>
+      <label for="msg">암호화할 문장</label>
+      <textarea class="in" id="msg">CUBE CIPHER IS FUN</textarea>
+      <p class="note" id="msgInfo"></p>
+      <div id="encX"></div>
+    </div>
+    <div class="step">
+      <h2><span class="tile" style="background:var(--red);color:#fff">3</span>암호화</h2>
+      <p>칸마다 색 텐서 K를 더하고, 키대로 섞고, 층마다 A를 곱합니다. 모든 계산은 29로 나눈 나머지입니다.</p>
+      <div id="encSteps"></div>
+    </div>
+  </section>
+
+  <section id="paneDec" hidden>
+    <div class="step">
+      <h2><span class="tile" style="background:var(--wht)">1</span>암호문</h2>
+      <p>받은 암호문을 붙여 넣으세요. 공백도 암호문의 일부입니다.</p>
+      <label for="ctIn">암호문</label>
+      <textarea class="in" id="ctIn"></textarea>
+      <div class="row2"><button class="btn" id="useLast">방금 만든 암호문 가져오기</button></div>
+      <p class="note" id="ctInfo"></p>
+    </div>
+    <div class="step">
+      <h2><span class="tile" style="background:var(--org)">2</span>큐브 키 적용</h2>
+      <p>보낸 사람과 같은 회전 순서와 행렬 A를 넣고 큐브를 섞으면 같은 색 텐서 K가 만들어집니다.</p>
+      <div data-key></div>
+      <div class="row2"><button class="btn go" id="applyKey">키 적용: 큐브 섞기</button></div>
+      <div id="decKey"></div>
+    </div>
+    <div class="step">
+      <h2><span class="tile" style="background:var(--grn);color:#fff">3</span>복호화</h2>
+      <p>암호화의 역원을 거꾸로 된 순서로 적용합니다: A⁻¹ 곱하기 → 역회전 → K 빼기.</p>
+      <div class="row2"><button class="btn hot" id="runDec">복호화하기</button></div>
+      <div id="decSteps"></div>
+    </div>
+  </section>
+</main>
+
+<template id="keyTpl">
+  <div class="chips" data-chips></div>
+  <label>회전 순서 직접 입력 <span class="note">(예: R U F′ L2)</span></label>
+  <div class="keyline"><input class="in" data-keyin autocomplete="off" spellcheck="false"><button class="btn" data-keyapply>적용</button></div>
+  <p class="warn" data-keyerr hidden></p>
+  <label>곱셈 행렬 A</label>
+  <div class="mat"><div class="mgrid" data-mat></div><div data-det></div></div>
+</template>
+
+<script>
+const AL=" ABCDEFGHIJKLMNOPQRSTUVWXYZ.?",PM=29;
+const md=n=>((n%PM)+PM)%PM;
+const AX={x:0,y:1,z:2};
+const MOVES={U:['y',1,-1],D:['y',-1,1],R:['x',1,-1],L:['x',-1,1],F:['z',1,-1],B:['z',-1,1]};
+const posOf=i=>{const zz=Math.floor(i/9),r=Math.floor(i/3)%3,c=i%3;return[c-1,1-zz,1-r]};
+const idxOf=([x,y,z])=>(1-y)*9+(1-z)*3+(x+1);
+function rotQ(ax,s,[x,y,z]){if(ax==='x')return[x,-z*s,y*s];if(ax==='y')return[z*s,y,-x*s];return[-y*s,x*s,z]}
+function moveInfo(t){const m=MOVES[t[0]];const pr=t.length>1;return{ax:m[0],layer:m[1],s:m[2]*(pr?-1:1)}}
+function applyMove(T,t){const {ax,layer,s}=moveInfo(t),N=T.slice();for(let i=0;i<27;i++){const p=posOf(i);if(p[AX[ax]]===layer)N[idxOf(rotQ(ax,s,p))]=T[i]}return N}
+const applySeq=(T,seq)=>seq.reduce(applyMove,T);
+function parseSeq(str){const out=[],bad=[];(str.match(/\S+/g)||[]).forEach(tok=>{const m=tok.match(/^([UDLRFB])(2|'|’|2'|)$/i);if(!m){bad.push(tok);return}const f=m[1].toUpperCase();if(m[2].startsWith('2'))out.push(f,f);else out.push(m[2]?f+"'":f)});return{seq:out,bad}}
+const invSeq=seq=>seq.slice().reverse().map(t=>t.length>1?t[0]:t+"'");
+const C0=Array.from({length:27},(_,i)=>{const[x,y,z]=posOf(i);return(y===1?1:0)+(y===-1?2:0)+(z===1?3:0)+(z===-1?4:0)+(x===1?5:0)+(x===-1?6:0)});
+const det3=a=>a[0][0]*(a[1][1]*a[2][2]-a[1][2]*a[2][1])-a[0][1]*(a[1][0]*a[2][2]-a[1][2]*a[2][0])+a[0][2]*(a[1][0]*a[2][1]-a[1][1]*a[2][0]);
+function invMod(n){n=md(n);for(let k=1;k<PM;k++)if(n*k%PM===1)return k;return null}
+function inv3(a){const d=invMod(det3(a));if(d===null)return null;const c=(r,s)=>{const m=[0,1,2].filter(i=>i!==r),n=[0,1,2].filter(i=>i!==s);return((r+s)%2?-1:1)*(a[m[0]][n[0]]*a[m[1]][n[1]]-a[m[0]][n[1]]*a[m[1]][n[0]])};return[0,1,2].map(i=>[0,1,2].map(j=>md(d*c(j,i))))}
+function mulLayers(A,T){const N=T.slice();for(let k=0;k<3;k++)for(let r=0;r<3;r++)for(let c=0;c<3;c++){let s=0;for(let t=0;t<3;t++)s+=A[r][t]*T[k*9+t*3+c];N[k*9+r*3+c]=md(s)}return N}
+function normalize(s){let bad=0;const t=[...s.toUpperCase()].map(ch=>{if(AL.includes(ch))return ch;if(ch==='\n'||ch==='\t')return' ';bad++;return'?'}).join('');return{t,bad}}
+const toNums=s=>[...s].map(ch=>AL.indexOf(ch));
+const toText=a=>a.map(n=>AL[n]).join('');
+function blocks(nums){const out=[];for(let i=0;i<Math.max(nums.length,1);i+=27){const b=nums.slice(i,i+27);while(b.length<27)b.push(0);out.push(b)}return out}
+function encrypt(text,seq,A){const K=applySeq(C0,seq);const n=normalize(text);return{K,bad:n.bad,clean:n.t,blocks:blocks(toNums(n.t)).map(X=>{const Y1=X.map((v,i)=>md(v+K[i])),Y2=applySeq(Y1,seq),Y3=mulLayers(A,Y2);return{X,Y1,Y2,Y3}})}}
+function decrypt(text,seq,A){const K=applySeq(C0,seq),Ai=inv3(A),iv=invSeq(seq);const n=normalize(text);return{K,Ai,iv,bad:n.bad,blocks:blocks(toNums(n.t)).map(Y=>{const Z1=mulLayers(Ai,Y),Z2=applySeq(Z1,iv),Z3=Z2.map((v,i)=>md(v-K[i]));return{Y,Z1,Z2,Z3}})}}
+if(typeof module!=='undefined')module.exports={encrypt,decrypt,parseSeq,invSeq,applySeq,C0,inv3,det3,toText,md,posOf};
+
+{
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const st={key:parseSeq("R U F").seq,A:[[2,3,1],[1,1,4],[3,2,2]],tab:'enc',bE:0,bD:0,dec:0,lastCt:''};
+const COL={U:'#f4f4f4',D:'#ffd500',F:'#c41e3a',B:'#ff5800',R:'#0046ad',L:'#009b48'};
+const NAMES=[['흰색',1,'U'],['노랑',2,'D'],['빨강',3,'F'],['주황',4,'B'],['파랑',5,'R'],['초록',6,'L']];
+const pretty=t=>t.replace("'","′");
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---- 3D cube ---- */
+const stage=$('#stage'),view=$('#view');let S=56,rx=-28,ry=-36;
+const I3=()=>[[1,0,0],[0,1,0],[0,0,1]];
+const mm=(a,b)=>a.map((r,i)=>[0,1,2].map(j=>r[0]*b[0][j]+r[1]*b[1][j]+r[2]*b[2][j]));
+const mv=(a,v)=>a.map(r=>r[0]*v[0]+r[1]*v[1]+r[2]*v[2]);
+function rotM(ax,t){const c=Math.cos(t),s=Math.sin(t);if(ax==='x')return[[1,0,0],[0,c,-s],[0,s,c]];if(ax==='y')return[[c,0,s],[0,1,0],[-s,0,c]];return[[c,-s,0],[s,c,0],[0,0,1]]}
+const rnd=a=>a.map(r=>Array.isArray(r)?r.map(Math.round):Math.round(r));
+const FACES=[['F','translateZ(var(--h))',p=>p[2]===1],['B','rotateY(180deg) translateZ(var(--h))',p=>p[2]===-1],['R','rotateY(90deg) translateZ(var(--h))',p=>p[0]===1],['L','rotateY(-90deg) translateZ(var(--h))',p=>p[0]===-1],['U','rotateX(90deg) translateZ(var(--h))',p=>p[1]===1],['D','rotateX(-90deg) translateZ(var(--h))',p=>p[1]===-1]];
+const cubies=[];
+for(let i=0;i<27;i++){const h=posOf(i);if(h.every(v=>v===0))continue;const el=document.createElement('div');el.className='cb';el.innerHTML=FACES.map(([k,tr,on])=>`<div class="f" style="transform:${tr};${on(h)?'--c:'+COL[k]:''}"></div>`).join('');view.appendChild(el);cubies.push({el,h,p:h.slice(),R:I3()})}
+function place(c,R,p){const f=[1,-1,1],m=[0,1,2].map(i=>[0,1,2].map(j=>f[i]*R[i][j]*f[j]));const t=[p[0]*S,-p[1]*S,p[2]*S];c.el.style.transform=`matrix3d(${m[0][0]},${m[1][0]},${m[2][0]},0,${m[0][1]},${m[1][1]},${m[2][1]},0,${m[0][2]},${m[1][2]},${m[2][2]},0,${t[0]},${t[1]},${t[2]},1)`}
+function sizeCube(){S=Math.round(Math.min(62,stage.clientWidth/6.2,stage.clientHeight/5.4));view.style.setProperty('--h',S/2+'px');cubies.forEach(c=>{c.el.style.width=c.el.style.height=S+'px';c.el.style.left=c.el.style.top=(-S/2)+'px';place(c,c.R,c.p)});orient()}
+const orient=()=>{view.style.transform=`rotateX(${rx}deg) rotateY(${ry}deg)`};
+function turnInstant(t){const {ax,layer,s}=moveInfo(t),Q=rnd(rotM(ax,s*Math.PI/2));cubies.forEach(c=>{if(c.p[AX[ax]]===layer){c.R=rnd(mm(Q,c.R));c.p=rnd(mv(Q,c.p))}})}
+function setInstant(seq){token++;queue=[];busy=false;cubies.forEach(c=>{c.p=c.h.slice();c.R=I3()});seq.forEach(turnInstant);cubies.forEach(c=>place(c,c.R,c.p))}
+let queue=[],busy=false,token=0,mode='key';
+function play(moves,done){moves.forEach((t,i)=>queue.push({t,done:i===moves.length-1?done:null}));next()}
+function next(){if(busy||!queue.length)return;busy=true;const job=queue.shift(),my=token,{ax,layer,s}=moveInfo(job.t);const sel=cubies.filter(c=>c.p[AX[ax]]===layer);const dur=reduce?0:Math.max(140,330-queue.length*25),t0=performance.now();
+ const fin=()=>{const Q=rnd(rotM(ax,s*Math.PI/2));sel.forEach(c=>{c.R=rnd(mm(Q,c.R));c.p=rnd(mv(Q,c.p));place(c,c.R,c.p)});busy=false;job.done&&job.done();next()};
+ const fr=now=>{if(my!==token)return;const k=dur?Math.min(1,(now-t0)/dur):1,e=k<.5?2*k*k:1-((-2*k+2)**2)/2,M=rotM(ax,s*e*Math.PI/2);sel.forEach(c=>place(c,mm(M,c.R),mv(M,c.p)));k<1?requestAnimationFrame(fr):fin()};requestAnimationFrame(fr)}
+const setState=txt=>{$('#cubeState').textContent=txt};
+function ensureKey(){if(mode!=='key'){setInstant(st.key);mode='key';setState('키 상태')}}
+let drag=null;
+stage.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};stage.classList.add('drag');stage.setPointerCapture(e.pointerId)});
+stage.addEventListener('pointermove',e=>{if(!drag)return;ry+=(e.clientX-drag.x)*.45;rx=Math.max(-85,Math.min(85,rx-(e.clientY-drag.y)*.45));drag={x:e.clientX,y:e.clientY};orient()});
+const endDrag=()=>{drag=null;stage.classList.remove('drag')};stage.addEventListener('pointerup',endDrag);stage.addEventListener('pointercancel',endDrag);
+
+/* ---- key controls ---- */
+$('#pad').innerHTML=['U','D','L','R','F','B'].map(f=>`<button class="mv" data-m="${f}" style="--fc:${COL[f]}" aria-label="${f} 시계 방향">${f}</button>`).join('')+['U','D','L','R','F','B'].map(f=>`<button class="mv" data-m="${f}'" style="--fc:${COL[f]}" aria-label="${f} 반시계 방향">${f}′</button>`).join('');
+$('#legend').innerHTML=NAMES.map(([n,v,k])=>`<span><i style="background:${COL[k]}"></i>${n} ${v}</span>`).join('');
+function doMove(t){ensureKey();st.key.push(t);play([t]);changed()}
+$('#pad').addEventListener('click',e=>{const b=e.target.closest('[data-m]');if(b)doMove(b.dataset.m)});
+document.addEventListener('keydown',e=>{if(e.target.closest('input,textarea')||e.ctrlKey||e.metaKey||e.altKey)return;const k=e.key.toUpperCase();if('UDLRFB'.includes(k)&&k.length===1){e.preventDefault();doMove(e.shiftKey?k+"'":k)}});
+$('#undo').onclick=()=>{if(!st.key.length)return;ensureKey();const t=st.key.pop();play(invSeq([t]));changed()};
+$('#reset').onclick=()=>{st.key=[];setInstant([]);mode='key';setState('키 상태');changed()};
+$('#rand').onclick=()=>{const F='UDLRFB',out=[];while(out.length<10){const f=F[Math.floor(Math.random()*6)];if(out.length&&out[out.length-1][0]===f)continue;out.push(Math.random()<.5?f:f+"'")}st.key=out;setInstant([]);mode='key';setState('키 상태');play(out);changed()};
+$$('[data-key]').forEach(box=>{box.appendChild($('#keyTpl').content.cloneNode(true));box.querySelector('[data-mat]').innerHTML=[0,1,2].map(r=>[0,1,2].map(c=>`<input inputmode="numeric" aria-label="A ${r+1}행 ${c+1}열" data-a="${r}${c}" value="${st.A[r][c]}">`).join('')).join('')});
+document.addEventListener('input',e=>{const a=e.target.dataset.a;if(a===undefined)return;const v=parseInt(e.target.value,10);st.A[+a[0]][+a[1]]=isNaN(v)?0:md(v);changed(e.target)});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-keyapply]');if(!b)return;const box=b.closest('[data-key]'),inp=box.querySelector('[data-keyin]'),err=box.querySelector('[data-keyerr]');const {seq,bad}=parseSeq(inp.value.replace(/′/g,"'"));if(bad.length){err.hidden=false;err.textContent=`알 수 없는 회전: ${bad.join(', ')}. U D L R F B 뒤에 ′ 또는 2만 붙일 수 있어요.`;return}err.hidden=true;st.key=seq;setInstant([]);mode='key';setState('키 상태');play(seq);changed()});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches('[data-keyin]')){e.preventDefault();e.target.closest('[data-key]').querySelector('[data-keyapply]').click()}});
+const Aok=()=>inv3(st.A)!==null;
+function renderKey(skip){const chips=st.key.length?st.key.map(t=>`<span class="chip">${pretty(t)}</span>`).join(''):'<span class="empty">아직 돌리지 않았어요. 왼쪽 버튼으로 큐브를 돌려 보세요.</span>';const d=md(det3(st.A)),Ai=inv3(st.A);
+ $$('[data-key]').forEach(box=>{box.querySelector('[data-chips]').innerHTML=chips+(st.key.length?`<span class="note">&nbsp;${st.key.length}수</span>`:'');const inp=box.querySelector('[data-keyin]');if(document.activeElement!==inp)inp.value=st.key.map(pretty).join(' ');
+  box.querySelectorAll('[data-a]').forEach(x=>{if(x!==skip)x.value=st.A[+x.dataset.a[0]][+x.dataset.a[1]]});
+  box.querySelector('[data-det]').innerHTML=Ai?`<div>행렬식 ≡ ${d} (mod 29) <span class="ok">역행렬 있음</span></div><div class="note">A⁻¹ = [${Ai.map(r=>r.join(' ')).join(' / ')}]</div>`:`<div>행렬식 ≡ 0 (mod 29) <span class="bad">역행렬 없음</span></div><div class="note">이 A로는 복호화할 수 없어서 암호화도 막아 두었어요. 숫자 하나를 바꿔 보세요.</div>`})}
+
+/* ---- grids ---- */
+const ch=v=>AL[v]===' '?'␣':AL[v];
+const grid=(a,letters)=>`<div class="layers">${[0,1,2].map(k=>`<div><div class="lk">${k+1}층</div><div class="lay">${a.slice(k*9,k*9+9).map(v=>`<span class="cell"><b>${v}</b>${letters?`<i>${ch(v)}</i>`:''}</span>`).join('')}</div></div>`).join('')}</div>`;
+const srow=(t,eq,a,l)=>`<div class="srow"><h3>${t}</h3><div class="eq">${eq}</div>${grid(a,l)}</div>`;
+const blkBtns=(n,cur,name)=>n>1?`<div class="blks">${Array.from({length:n},(_,i)=>`<button class="btn" data-${name}="${i}" aria-pressed="${i===cur}">큐브 ${i+1}</button>`).join('')}</div>`:'';
+const vis=s=>esc(s).replace(/ /g,'<u>␣</u>');
+const seqTxt=s=>s.length?s.map(pretty).join(' → '):'(회전 없음)';
+
+/* ---- encrypt ---- */
+function renderEnc(){const m=$('#msg').value;const r=encrypt(m,st.key,st.A),n=r.blocks.length;st.bE=Math.min(st.bE,n-1);const b=r.blocks[st.bE];
+ $('#msgInfo').textContent=`${r.clean.length}글자 → 큐브 ${n}개 (${n*27}칸, 남는 칸은 공백 0)`+(r.bad?` · 지원하지 않는 글자 ${r.bad}개는 ?로 바꿨어요`:'');
+ $('#encX').innerHTML=blkBtns(n,st.bE,'be')+srow('평문 텐서 X','글자 → 숫자, 1층 1행부터 차례로',b.X,true);
+ if(!Aok()){$('#encSteps').innerHTML='<p class="warn">행렬 A의 역행렬이 없어 암호화를 멈췄어요. 1단계에서 A를 바꿔 주세요.</p>';st.lastCt='';return}
+ const ct=r.blocks.map(x=>toText(x.Y3)).join('');st.lastCt=ct;
+ $('#encSteps').innerHTML=blkBtns(n,st.bE,'be')+srow('색 텐서 K','맞춘 큐브의 칸별 스티커 색 번호 합을 키대로 섞은 것',r.K,false)+srow('① 더하기','X + K',b.Y1,true)+srow('② 섞기',seqTxt(st.key),b.Y2,true)+srow('③ 곱하기','층마다 A × (3×3 층)',b.Y3,true)+
+ `<div class="result"><h3>암호문</h3><p class="big">${vis(ct)}</p><div class="row2"><button class="btn hot" id="copyCt">암호문 복사</button><button class="btn" id="toDec">복호화해 보기</button></div><p class="note">받는 사람에게 알려 줄 키: 회전 ${esc(st.key.map(pretty).join(' ')||'없음')} · A = [${st.A.map(r=>r.join(' ')).join(' / ')}]</p></div>`}
+document.addEventListener('click',async e=>{const be=e.target.closest('[data-be]');if(be){st.bE=+be.dataset.be;renderEnc();return}const bd=e.target.closest('[data-bd]');if(bd){st.bD=+bd.dataset.bd;renderDec();return}
+ if(e.target.id==='copyCt'){try{await navigator.clipboard.writeText(st.lastCt);e.target.textContent='복사했어요'}catch(_){e.target.textContent='복사가 막혔어요. 위 글자를 직접 선택하세요'}}
+ if(e.target.id==='toDec'){$('#ctIn').value=st.lastCt;st.dec=0;showTab('dec');renderDec()}});
+$('#msg').addEventListener('input',()=>{st.bE=0;renderEnc()});
+
+/* ---- decrypt ---- */
+function renderDec(){const raw=$('#ctIn').value,len=[...raw].length;$('#ctInfo').textContent=len?`${len}글자`+(len%27?` · 27의 배수가 아니에요. 복사할 때 끝의 공백이 빠졌는지 확인하세요(빈칸은 공백으로 채워 계산합니다).`:` · 큐브 ${len/27}개`):'';
+ $('#runDec').disabled=st.dec<2||!Aok()||!len;
+ if(st.dec<2){$('#decKey').innerHTML='';$('#decSteps').innerHTML='';return}
+ if(!Aok()){$('#decKey').innerHTML='<p class="warn">이 행렬 A는 역행렬이 없어 복호화할 수 없어요.</p>';$('#decSteps').innerHTML='';return}
+ const r=decrypt(raw,st.key,st.A),n=r.blocks.length;st.bD=Math.min(st.bD,n-1);const b=r.blocks[st.bD];
+ $('#decKey').innerHTML=srow('색 텐서 K','같은 키로 섞었으므로 보낸 사람의 K와 같아요',r.K,false)+`<p class="note">복호화에 쓸 역원: A⁻¹ = [${r.Ai.map(x=>x.join(' ')).join(' / ')}] · 역회전 ${seqTxt(r.iv)}</p>`;
+ if(st.dec<3){$('#decSteps').innerHTML='';return}
+ const pt=r.blocks.map(x=>toText(x.Z3)).join('').replace(/ +$/,'');
+ $('#decSteps').innerHTML=blkBtns(n,st.bD,'bd')+srow('암호문 텐서 Y','글자 → 숫자',b.Y,true)+srow('① A⁻¹ 곱하기','층마다 A⁻¹ × (3×3 층)',b.Z1,true)+srow('② 역회전',seqTxt(r.iv),b.Z2,true)+srow('③ 빼기','− K',b.Z3,true)+
+ `<div class="result" style="background:color-mix(in srgb,var(--grn) 10%,var(--bg));border-color:color-mix(in srgb,var(--grn) 45%,var(--bg))"><h3>복호화된 문장</h3><p class="big">${esc(pt)||'(빈 문장)'}</p><p class="note">키가 하나라도 다르면 전혀 다른 글자가 나옵니다.</p></div>`}
+$('#ctIn').addEventListener('input',()=>{if(st.dec>2)st.dec=2;renderDec()});
+$('#useLast').onclick=()=>{$('#ctIn').value=st.lastCt;if(st.dec>2)st.dec=2;renderDec()};
+$('#applyKey').onclick=()=>{setInstant([]);mode='key';setState('키로 섞는 중');st.dec=2;renderDec();play(st.key.length?st.key:[],()=>setState('키 상태'));if(!st.key.length)setState('키 상태')};
+$('#runDec').onclick=()=>{st.dec=3;renderDec();ensureKey();const iv=invSeq(st.key);mode='inv';setState('역회전 중');if(iv.length)play(iv,()=>setState('역원 적용 완료: 맞춘 상태'));else setState('역원 적용 완료: 맞춘 상태')};
+
+/* ---- shared ---- */
+function changed(skip){renderKey(skip);renderEnc();if(st.dec>2)st.dec=2;renderDec()}
+function showTab(t){st.tab=t;$('#paneEnc').hidden=t!=='enc';$('#paneDec').hidden=t!=='dec';$$('.tab').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t))}
+$$('.tab').forEach(b=>b.onclick=()=>{showTab(b.dataset.tab);if(b.dataset.tab==='dec'&&!$('#ctIn').value){$('#ctIn').value=st.lastCt;renderDec()}});
+const ro=new ResizeObserver(sizeCube);ro.observe(stage);
+sizeCube();renderKey();renderEnc();$('#ctIn').value=st.lastCt;renderDec();
+setTimeout(()=>{setInstant([]);play(st.key.slice())},400);
+}
+</script>
+</body>
+</html>
